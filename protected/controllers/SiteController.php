@@ -20,11 +20,11 @@ class SiteController extends Controller
 			),
 		);
 	}
-	public function actionTap()
+	public function actionSearch()
 	{	
-		if(isset($_GET['search'])&&strlen($_GET['search']) > 0)
+		if(isset($_GET['name'])&&strlen($_GET['name']) > 0)
 		{
-			$searchItem = $_GET['search'];
+			$searchItem = $_GET['name'];
 			$match = addcslashes($searchItem, '%_'); // escape LIKE's special characters
 			$q = new CDbCriteria( array(
 			    'condition' => "title LIKE :match",         // no quotes around :match
@@ -33,33 +33,32 @@ class SiteController extends Controller
 			 
 			$RecipeModel = Recipe::model()->findAll( $q ); 
 			// $model = Recipe::model()->findAll("category=:category",array(":category"=>'%$searchItem%'));  
-			$recipeJson =[];
+			$recipeJson =array();
+			$n = 0;
 			foreach ($RecipeModel as $num)
 			{   $recipeId = $num->recipeId;			
 				$RecipeIngredientModel = RecipeIngredient::model()->findAll("recipeId=:recipeId",array(":recipeId"=>$recipeId));
-				$ingredients =[];
-				foreach ($RecipeIngredientModel as $key => $value) {
-					$JSONIngredient = json_encode(array('ingredient'=>$value->ingredients));
- 					array_push($ingredients, $JSONIngredient);
-				}
 
-				$JSONCom = json_encode(array('recipeId'=>$num->recipeId,'title'=>$num->title,
-					'ingredients'=>$ingredients,'webUrl'=>$num->webUrl,'imageUrl'=>$num->imageUrl));
+				$JSONCom = array('recipeId'=>$num->recipeId,'title'=>$num->title,
+				'webUrl'=>$num->webUrl,'imageUrl'=>$num->imageUrl);
 				array_push($recipeJson, $JSONCom);
+				$n++;
+				if($n>20)
+					break;
 			}
 			echo json_encode($recipeJson);
 		}
 	}
 	public function actionRand()
 	{
-	    $listIndex = 10;
+	    $listIndex = 12;
         if(isset($_GET['indexNum']))
         {
           $listIndex = intval($_GET['indexNum']);
         }
 		$sqlStatement = "select recipeId from Recipe order by RAND() limit ".$listIndex;
 		$list= Yii::app()->db->createCommand($sqlStatement)->queryAll();
-		$recipeJson =[];
+		$recipeJson =array();
 		for($i=0; $i<sizeof($list); $i++)
 		{
 			// echo $list[$i]['recipeId'];
@@ -68,22 +67,51 @@ class SiteController extends Controller
 		    $ingredientList= Yii::app()->db->createCommand($sqlNewStatement)->queryAll();
 		    // echo "$key = $val\n";
 			$RecipeModel = Recipe::model()->find("recipeId=:recipeId",array(":recipeId"=>$list[$i]['recipeId']));
-			$JSONCom = json_encode(array('recipeId'=>$list[$i]['recipeId'],'title'=>$RecipeModel->title,
-			'ingredients'=>$ingredientList,'webUrl'=>$RecipeModel->webUrl,'imageUrl'=>$RecipeModel->imageUrl));
+			$JSONCom = array('recipeId'=>$list[$i]['recipeId'],'title'=>$RecipeModel->title,
+			'ingredients'=>$ingredientList,'webUrl'=>$RecipeModel->webUrl,'imageUrl'=>$RecipeModel->imageUrl);
 			array_push($recipeJson, $JSONCom);
+
 		}
 		echo json_encode($recipeJson);
 
 
 	}
+	public function actionList()
+	{
+		$sqlStatement = "select * from Ingredients";
+		$ingredientList= Yii::app()->db->createCommand($sqlStatement)->queryAll();
+		// echo count($ingredientList);
+		// for($i=1;$i<=count($ingredientList);$i++)
+		// {
+		// 	$name = $ingredientList[($i-1)]['name'];
+			
+		// 	$name = str_replace("\n","",$name);
+		// 	$name = str_replace(" ","",$name);
+		// 	echo $name;
+		// 	$sqlNewStatement = 'update Ingredients set name ="'.$name.'" where id='.$i;
+		// 	// echo $sqlNewStatement;
+		// 	$yes = Yii::app()->db->createCommand($sqlNewStatement)->execute();
+		// 	// $Yii::app()->db->commit();
+		// 	// echo $i;
+		// }
+		$ingreList = array();
+		for($i=0;$i<count($ingredientList);$i++)
+		{
+			$name = $ingredientList[$i]['name'];
+			array_push($ingreList, $name);
+
+		}
+		echo json_encode($ingreList);
+
+	}
 	public function actionRecipe()
 	{
-		$recipeJson =[];
+		$recipeJson =array();
 		if(isset($_GET['ingredients']))
 		{
 			$recipeList = array();
 			$ingredients = $_GET['ingredients'];
-			$iOptions = split(',', $ingredients);
+			$iOptions = explode(',', $ingredients);
 			// echo $iOptions[1];
 			if(strlen($iOptions[0])>0)
 			{
@@ -132,8 +160,8 @@ class SiteController extends Controller
 				foreach ($recipeList as $key => $val) {
 					$sqlNewStatement = "select ingredients from RecipeIngredient where recipeId ='".$val['recipeId']."'";
     			    $RecipeModel = Recipe::model()->find("recipeId=:recipeId",array(":recipeId"=>$val['recipeId']));
-					$JSONCom = json_encode(array('recipeId'=>$val['recipeId'],'title'=>$RecipeModel->title,
-					'webUrl'=>$RecipeModel->webUrl,'imageUrl'=>$RecipeModel->imageUrl));
+					$JSONCom = array('recipeId'=>$val['recipeId'],'title'=>$RecipeModel->title,
+					'webUrl'=>$RecipeModel->webUrl,'imageUrl'=>$RecipeModel->imageUrl);
 					array_push($recipeJson, $JSONCom);
 					$n++;
 					if($n>20)
@@ -182,7 +210,7 @@ class SiteController extends Controller
 			// echo strlen($mOptions[0]);
 			// echo $sqlStatement;
     		$list= Yii::app()->db->createCommand($sqlStatement)->queryAll();
-		    $validResult = [];
+		    $validResult = array();
 		    for($j=0; $j<sizeof($list);$j++)
 		    {
                if(!($this->checkValid($bOptions,$list[$j]['recipeId'])))
@@ -193,7 +221,7 @@ class SiteController extends Controller
                {
                		break;
                }
-               $JSONresult = json_encode(array('recipeId'=>$list[$j]['recipeId']));
+               $JSONresult = array('recipeId'=>$list[$j]['recipeId']);
 				array_push($validResult, $JSONresult);
 
 		    }
@@ -222,7 +250,7 @@ class SiteController extends Controller
     }
     public function actionDetail()
     {
-    	$recipeDetail = [];
+    	$recipeDetail = array();
     	if(isset($_GET['recipeId']))
     	{
     		$recipeId = $_GET['recipeId'];
@@ -231,11 +259,49 @@ class SiteController extends Controller
     		// echo json_encode($recipeResult);
 			$ingredientStatement = "select ingredients from RecipeIngredient where recipeId ='".$recipeId."'";
 		    $ingredientList= Yii::app()->db->createCommand($ingredientStatement)->queryAll();
-			$recipeDetail = json_encode(array('recipeId'=>$recipeId,'title'=>$recipeResult[0]['title'],
+			$recipeDetail = array('recipeId'=>$recipeId,'title'=>$recipeResult[0]['title'],
 			'webUrl'=>$recipeResult[0]['webUrl'],'imageUrl'=>$recipeResult[0]['imageUrl'],
-			'ingredients'=>$ingredientList));		
+			'ingredients'=>$ingredientList);		
     	}
     	 echo json_encode($recipeDetail);
+    }
+    public function actionInfo()
+    {
+    	if(isset($_POST['search'])&&!empty($_POST['search']))
+    	{
+    		$searchItem = $_POST['search'];
+			 $this->render('info',array(
+					'searchItem'=>$searchItem,
+			));  		
+    	}
+    	else
+    	{
+    		$this->redirect('index');
+    	}
+    }
+    public function actionDisplay()
+    {
+    	$recipeDetail = array();
+    	if(isset($_GET['recipeId']))
+    	{
+    		$recipeId = $_GET['recipeId'];
+    		$recipeStatement = "select * from Recipe where recipeId='".$recipeId."'";
+    		$recipeResult = Yii::app()->db->createCommand($recipeStatement)->queryAll();
+    		// echo json_encode($recipeResult);
+			$ingredientStatement = "select ingredients from RecipeIngredient where recipeId ='".$recipeId."';";
+		    // echo $ingredientStatement;
+		    $ingredientList= Yii::app()->db->createCommand($ingredientStatement)->queryAll();
+		    // echo json_encode($ingredientList);
+			$recipeDetail = array('recipeId'=>$recipeId,'title'=>$recipeResult[0]['title'],
+			'webUrl'=>$recipeResult[0]['webUrl'],'imageUrl'=>$recipeResult[0]['imageUrl'],
+			'ingredients'=>$ingredientList);	
+				
+    	}
+    	// echo json_encode($recipeDetail);
+          $this->render('display',array(
+			'recipeDetail'=>$recipeDetail
+		));
+    	 // $this->render('detail',array('recipeDetail'=>$recipeDetail));
     }
 
 	/**
@@ -246,81 +312,22 @@ class SiteController extends Controller
 	{
 		// renders the view file 'protected/views/site/index.php'
 		// using the default layout 'protected/views/layouts/main.php'
-		$this->render('index');
+		$this->render('main');
 	}
 
 	/**
 	 * This is the action to handle external exceptions.
 	 */
-	public function actionError()
-	{
-		if($error=Yii::app()->errorHandler->error)
-		{
-			if(Yii::app()->request->isAjaxRequest)
-				echo $error['message'];
-			else
-				$this->render('error', $error);
-		}
-	}
+	// public function actionError()
+	// {
+	// 	if($error=Yii::app()->errorHandler->error)
+	// 	{
+	// 		if(Yii::app()->request->isAjaxRequest)
+	// 			echo $error['message'];
+	// 		else
+	// 			$this->render('error', $error);
+	// 	}
+	// }
 
-	/**
-	 * Displays the contact page
-	 */
-	public function actionContact()
-	{
-		$model=new ContactForm;
-		if(isset($_POST['ContactForm']))
-		{
-			$model->attributes=$_POST['ContactForm'];
-			if($model->validate())
-			{
-				$name='=?UTF-8?B?'.base64_encode($model->name).'?=';
-				$subject='=?UTF-8?B?'.base64_encode($model->subject).'?=';
-				$headers="From: $name <{$model->email}>\r\n".
-					"Reply-To: {$model->email}\r\n".
-					"MIME-Version: 1.0\r\n".
-					"Content-Type: text/plain; charset=UTF-8";
 
-				mail(Yii::app()->params['adminEmail'],$subject,$model->body,$headers);
-				Yii::app()->user->setFlash('contact','Thank you for contacting us. We will respond to you as soon as possible.');
-				$this->refresh();
-			}
-		}
-		$this->render('contact',array('model'=>$model));
-	}
-
-	/**
-	 * Displays the login page
-	 */
-	public function actionLogin()
-	{
-		$model=new LoginForm;
-
-		// if it is ajax validation request
-		if(isset($_POST['ajax']) && $_POST['ajax']==='login-form')
-		{
-			echo CActiveForm::validate($model);
-			Yii::app()->end();
-		}
-
-		// collect user input data
-		if(isset($_POST['LoginForm']))
-		{
-			$model->attributes=$_POST['LoginForm'];
-			// validate user input and redirect to the previous page if valid
-			if($model->validate() && $model->login())
-				$this->redirect(Yii::app()->user->returnUrl);
-		}
-		// display the login form
-		$this->render('login',array('model'=>$model));
-	}
-
-	/**
-	 * Logs out the current user and redirect to homepage.
-	 */
-	public function actionLogout()
-	{
-		Yii::app()->user->logout();
-		$this->redirect(Yii::app()->homeUrl);
-	}
 }
